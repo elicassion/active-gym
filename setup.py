@@ -11,7 +11,7 @@ setup(
         "mujoco",
         "mujoco-py>=2.1.2.14"
         "atari-py"
-        "dm-control>=1.0.11"
+        "dm-control==1.0.11"
         "gym"
     ],
 )
