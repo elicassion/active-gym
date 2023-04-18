@@ -66,7 +66,7 @@ class DMCEnvArgs:
         self.from_pixels = True
         self.grey = True
         self.camera_id = 0
-        self.frame_skip = 4 # == action repeat
+        self.action_repeat = 4 # == action repeat
         self.frame_stack = 3
         self.mask_out = False
         self.environment_kwargs = {}
@@ -86,7 +86,7 @@ class DMCBaseEnv(gym.Env):
         self.grey: bool         = args.grey
         self.obs_size: Tuple[int, int] = args.obs_size
         self.camera_id: int     = args.camera_id
-        self.frame_skip: int    = args.frame_skip
+        self.action_repeat: int    = args.action_repeat
         self.frame_stack: int   = args.frame_stack
 
         self.task_kwargs = args.task_kwargs
@@ -163,7 +163,7 @@ class DMCBaseEnv(gym.Env):
 
     @property
     def reward_range(self):
-        return 0, self.frame_skip
+        return 0, self.action_repeat
 
     def seed(self, seed):
         self._true_action_space.seed(seed)
@@ -231,7 +231,7 @@ class DMCBaseEnv(gym.Env):
         reward = 0
 
         # frame skip / action repeat
-        for _ in range(self.frame_skip):
+        for _ in range(self.action_repeat):
             time_step = self.dmc_env.step(action)
             reward += time_step.reward or 0
             done = time_step.last()
