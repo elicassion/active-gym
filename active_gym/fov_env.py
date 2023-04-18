@@ -1,3 +1,5 @@
+# Copyright (c) Jinghuan Shang.
+
 from enum import IntEnum
 from typing import Tuple, Union
 

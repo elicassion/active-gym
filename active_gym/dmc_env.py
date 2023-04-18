@@ -1,3 +1,6 @@
+# Copyright (c) Jinghuan Shang.
+# reference: dmc2gym: https://github.com/denisyarats/dmc2gym
+
 import copy
 import random
 
@@ -15,7 +18,7 @@ import torch
 from dm_control import suite
 from dm_env import specs
 
-from fov_env import (
+from .fov_env import (
     FixedFovealEnv, 
     FlexibleFovealEnv, 
     FixedFovealPeripheralEnv,

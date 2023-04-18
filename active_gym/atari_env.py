@@ -1,3 +1,5 @@
+# Copyright (c) Jinghuan Shang.
+
 import copy
 import random
 
@@ -14,7 +16,7 @@ import torch
 
 import atari_py
 
-from fov_env import (
+from .fov_env import (
     FixedFovealEnv, 
     FlexibleFovealEnv, 
     FixedFovealPeripheralEnv,
