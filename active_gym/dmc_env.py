@@ -9,8 +9,8 @@ from PIL import Image
 from typing import Tuple, Union
 
 import cv2
-import gym
-from gym.spaces import Box
+import gymnasium as gym
+from gymnasium.spaces import Box
 
 import numpy as np
 import torch
@@ -19,6 +19,7 @@ from dm_control import suite
 from dm_env import specs
 
 from .fov_env import (
+    RecordWrapper,
     FixedFovealEnv, 
     FlexibleFovealEnv, 
     FixedFovealPeripheralEnv,
@@ -75,7 +76,7 @@ class DMCEnvArgs:
         for k, v in kwargs.items():
             self.__setattr__(k, v)
 
-class DMCBaseEnv(gym.Env):
+class DMCEnv(gym.Env):
     def __init__(
         self,
         args: DMCEnvArgs
@@ -106,7 +107,7 @@ class DMCBaseEnv(gym.Env):
         )
 
         # true and normalized action spaces
-        self._true_action_space = _spec_to_box([self.dmc_env.action_spec()], np.float32)
+        self._true_action_space: Box = _spec_to_box([self.dmc_env.action_spec()], np.float32)
         self._norm_action_space = Box(
             low=-1.0,
             high=1.0,
@@ -138,13 +139,6 @@ class DMCBaseEnv(gym.Env):
 
         # set seed
         self.seed(seed=self.seed_num)
-
-        # init reward and episode len counter
-        self.cumulative_reward = 0
-        self.ep_len = 0
-        self.record_buffer = None
-        self.prev_record_buffer = None
-        self.record = args.record
 
     def __getattr__(self, name):
         return getattr(self.dmc_env, name)
@@ -192,15 +186,10 @@ class DMCBaseEnv(gym.Env):
             obs = _flatten_obs(time_step.observation)
         return obs
     
-    def _get_info(self, time_step):
+    def _get_info(self, time_step, raw_reward=0):
         return {"internal_state": self.dmc_env.physics.get_state().copy(),
                 "discount": time_step.discount,
-                "ep_len": self.ep_len}
-    
-    def _reset_record_buffer(self):
-        self.prev_record_buffer = copy.deepcopy(self.record_buffer)
-        self.record_buffer = {"rgb": [], "state":[] , "action": [], "reward": [], "done": [], 
-                              "truncated": [], "info": [], "return_reward": []}
+                "raw_reward": raw_reward}
 
     def _reset_buffer(self):
         for _ in range(self.frame_stack):
@@ -218,10 +207,6 @@ class DMCBaseEnv(gym.Env):
         self.state_buffer.append(obs)
         state = np.stack(self.state_buffer, axis=0)
 
-        if self.record:
-            rgb = self.render()
-            self._reset_record_buffer()
-            self._save_transition(obs, done=False, info=info, rgb=rgb)
         return state, info
 
     def _step(self, action):
@@ -240,20 +225,13 @@ class DMCBaseEnv(gym.Env):
         obs = self._get_obs(time_step)
         self.current_state = _flatten_obs(time_step.observation)
 
-        # for recording
-        self.ep_len += 1
-        self.cumulative_reward += reward
-
         # variables to be returned
         self.state_buffer.append(obs)
         return_reward = np.sign(reward) if self.clip_reward else reward
         state = np.stack(self.state_buffer, axis=0)
-        info = self._get_info(time_step)
+        info = self._get_info(time_step, raw_reward=reward)
         truncated = False
         
-        if self.record:
-            rgb = self.render()
-            self._save_transition(state, action, reward, done, False, info, rgb=rgb, return_reward=return_reward)
         return state, return_reward, done, truncated, info
     
     def reset(self):
@@ -272,42 +250,13 @@ class DMCBaseEnv(gym.Env):
         )
         return rgb
     
-    def close():
+    def close(self):
         pass
 
-    def _save_transition(self, state, action=None, reward=None, done=None, 
-                            truncated=None, info=None, rgb=None,
-                            return_reward=None):
-        if (done is not None) and (not done):
-            self.record_buffer["state"].append(state)
-            # print (np.sum(rgb))
-            self.record_buffer["rgb"].append(rgb)
-        if action is not None:
-            self.record_buffer["action"].append(action)
-        if reward is not None:
-            self.record_buffer["reward"].append(reward)
-        if done is not None and len(self.record_buffer["state"]) > 1:
-            self.record_buffer["done"].append(done) 
-        if truncated is not None:
-            self.record_buffer["truncated"].append(truncated)
-        if info is not None and len(self.record_buffer["state"]) > 1:
-            self.record_buffer["info"].append(info)
-        if return_reward is not None:
-            self.record_buffer["return_reward"].append(return_reward)
-    
-    def save_record_to_file(self, file_path: str):
-        if self.record:
-            video_path = file_path.replace(".pt", ".mp4")
-            size = self.prev_record_buffer["rgb"][0].shape[:2][::-1]
-            fps = 30
-            # print (size)
-            video_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, size)
-            for frame in self.prev_record_buffer["rgb"]:
-                video_writer.write(frame)
-            self.prev_record_buffer["rgb"] = video_path
-            self.prev_record_buffer["state"] = [0] * len(self.prev_record_buffer["reward"])
-            torch.save(self.prev_record_buffer, file_path)
-            video_writer.release()
+def DMCBaseEnv(args: DMCEnvArgs) -> gym.Wrapper:
+    base_env = DMCEnv(args)
+    wrapped_env = RecordWrapper(base_env, args)
+    return wrapped_env
 
 def DMCFixedFovealEnv(args: DMCEnvArgs) -> gym.Wrapper:
     base_env = DMCBaseEnv(args)

@@ -8,8 +8,8 @@ from PIL import Image
 from typing import Tuple, Union
 
 import cv2
-import gym
-from gym.spaces import Box, Discrete
+import gymnasium as gym
+from gymnasium.spaces import Box, Discrete
 
 import numpy as np
 import torch
@@ -17,6 +17,7 @@ import torch
 import atari_py
 
 from .fov_env import (
+    RecordWrapper,
     FixedFovealEnv, 
     FlexibleFovealEnv, 
     FixedFovealPeripheralEnv,
@@ -38,7 +39,7 @@ class AtariEnvArgs:
         for k, v in kwargs.items():
             self.__setattr__(k, v)
 
-class AtariBaseEnv(gym.Env):
+class AtariEnv(gym.Env):
     def __init__(self, args):
         self.seed_num = args.seed
         self.ale = atari_py.ALEInterface()
@@ -68,27 +69,14 @@ class AtariBaseEnv(gym.Env):
         # Set attributes for gym.Env
         self.action_space = Discrete(len(actions))
         self.observation_space = Box(low=-1., high=1., shape=(self.frame_stack,)+self.obs_size, dtype=np.float32)
-
-        # init reward and episode len counter
-        self.cumulative_reward = 0
-        self.ep_len = 0
-        self.record_buffer = None
-        self.prev_record_buffer = None
-        self.record = args.record
-        # if self.record:
-        #     self._reset_record_buffer()
+        
 
     def _get_state(self):
         state = cv2.resize(self.ale.getScreenGrayscale(), self.obs_size, interpolation=cv2.INTER_LINEAR)
         return state.astype(np.float32) / 255.
 
-    def _get_info(self):
-        return {"reward": self.cumulative_reward, "ep_len": self.ep_len}
-
-    def _reset_record_buffer(self):
-        self.prev_record_buffer = copy.deepcopy(self.record_buffer)
-        self.record_buffer = {"rgb": [], "state":[] , "action": [], "reward": [], "done": [], 
-                              "truncated": [], "info": [], "return_reward": []}
+    def _get_info(self, raw_reward=0):
+        return {"raw_reward": raw_reward}
 
     def _reset_buffer(self):
         for _ in range(self.frame_stack):
@@ -120,20 +108,12 @@ class AtariBaseEnv(gym.Env):
             if self.ale.game_over():
                 self.ale.reset_game()
 
-        self.cumulative_reward = 0
-        self.ep_len = 0
         # Process and return "initial" state
         observation = self._get_state()
         self.state_buffer.append(observation)
         self.lives = self.ale.lives()
         state = np.stack(self.state_buffer, axis=0)
         info = self._get_info()
-
-        if self.record:
-            rgb = self.render()
-            # print ("_reset: reset record buffer")
-            self._reset_record_buffer()
-            self._save_transition(state, done=False, info=info, rgb=rgb)
 
         return state, info
 
@@ -160,19 +140,11 @@ class AtariBaseEnv(gym.Env):
                 done = True
             self.lives = lives
 
-        # for recording
-        self.ep_len += 1
-        self.cumulative_reward += reward
-
         # Return state, reward, done
         state = np.stack(self.state_buffer, axis=0)
         return_reward = np.sign(reward) if self.clip_reward else reward
         truncated = False
-        
-        info = self._get_info()
-        if self.record:
-            rgb = self.render()
-            self._save_transition(state, action, reward, done, False, info, rgb=rgb, return_reward=return_reward)
+        info = self._get_info(raw_reward=reward)
         
         return state, return_reward, done, truncated, info
 
@@ -200,39 +172,10 @@ class AtariBaseEnv(gym.Env):
     def close(self):
         pass
 
-    def _save_transition(self, state, action=None, reward=None, done=None, 
-                            truncated=None, info=None, rgb=None,
-                            return_reward=None):
-        if (done is not None) and (not done):
-            self.record_buffer["state"].append(state)
-            # print (np.sum(rgb))
-            self.record_buffer["rgb"].append(rgb)
-        if action is not None:
-            self.record_buffer["action"].append(action)
-        if reward is not None:
-            self.record_buffer["reward"].append(reward)
-        if done is not None and len(self.record_buffer["state"]) > 1:
-            self.record_buffer["done"].append(done) 
-        if truncated is not None:
-            self.record_buffer["truncated"].append(truncated)
-        if info is not None and len(self.record_buffer["state"]) > 1:
-            self.record_buffer["info"].append(info)
-        if return_reward is not None:
-            self.record_buffer["return_reward"].append(return_reward)
-    
-    def save_record_to_file(self, file_path: str):
-        if self.record:
-            video_path = file_path.replace(".pt", ".mp4")
-            size = self.prev_record_buffer["rgb"][0].shape[:2][::-1]
-            fps = 30
-            # print (size)
-            video_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, size)
-            for frame in self.prev_record_buffer["rgb"]:
-                video_writer.write(frame)
-            self.prev_record_buffer["rgb"] = video_path
-            self.prev_record_buffer["state"] = [0] * len(self.prev_record_buffer["reward"])
-            torch.save(self.prev_record_buffer, file_path)
-            video_writer.release()
+def AtariBaseEnv(args: AtariEnvArgs) -> gym.Wrapper:
+    base_env = AtariEnv(args)
+    wrapped_env = RecordWrapper(base_env, args)
+    return wrapped_env
 
 def AtariFixedFovealEnv(args: AtariEnvArgs) -> gym.Wrapper:
     base_env = AtariBaseEnv(args)

@@ -17,6 +17,7 @@ from .dmc_env import (
 )
 
 from .fov_env import (
+    RecordWrapper,
     FixedFovealEnv,
     FlexibleFovealEnv,
     FlexibleFovealEnvActionType,
