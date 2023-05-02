@@ -13,5 +13,7 @@ setup(
         "atari-py"
         "dm-control==1.0.11"
         "gym"
+        "torch"
+        "torchvision"
     ],
 )

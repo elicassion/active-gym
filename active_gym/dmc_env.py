@@ -1,19 +1,17 @@
 # Copyright (c) Jinghuan Shang.
 # reference: dmc2gym: https://github.com/denisyarats/dmc2gym
 
-import copy
 import random
 
 from collections import deque
 from PIL import Image
-from typing import Tuple, Union
+from typing import Tuple
 
 import cv2
 import gymnasium as gym
 from gymnasium.spaces import Box
 
 import numpy as np
-import torch
 
 from dm_control import suite
 from dm_env import specs

@@ -1,18 +1,16 @@
 # Copyright (c) Jinghuan Shang.
 
-import copy
 import random
 
 from collections import deque
 from PIL import Image
-from typing import Tuple, Union
+from typing import Tuple
 
 import cv2
 import gymnasium as gym
 from gymnasium.spaces import Box, Discrete
 
 import numpy as np
-import torch
 
 import atari_py
 
