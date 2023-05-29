@@ -234,7 +234,7 @@ class DMCEnv(gym.Env):
         
         return state, return_reward, done, truncated, info
     
-    def reset(self):
+    def reset(self, seed=None, options=None):
         state, info = self._reset()
         return state, info
 

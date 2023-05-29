@@ -16,6 +16,31 @@ from .dmc_env import (
     DMCEnvArgs
 )
 
+try:
+    from .robosuite_env import (
+        ActiveLift,
+        ActiveStack,
+        ActiveNutAssembly,
+        ActiveNutAssemblySingle,
+        ActiveNutAssemblySquare,
+        ActiveNutAssemblyRound,
+        ActivePickPlace,
+        ActivePickPlaceSingle,
+        ActivePickPlaceMilk,
+        ActivePickPlaceBread,
+        ActivePickPlaceCereal,
+        ActivePickPlaceCan,
+        ActiveDoor,
+        ActiveWipe,
+        ActiveToolHang,
+        ActiveTwoArmLift,
+        ActiveTwoArmPegInHole,
+        ActiveTwoArmHandover,
+        ActiveTwoArmTransport
+    )
+except:
+    pass
+
 from .fov_env import (
     RecordWrapper,
     FixedFovealEnv,
@@ -23,3 +48,4 @@ from .fov_env import (
     FlexibleFovealEnvActionType,
     FixedFovealPeripheralEnv
 )
+

@@ -7,3 +7,5 @@
 *.mp4
 *.png
 *.egg-info
+tmp
+tmp/
