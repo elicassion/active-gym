@@ -35,8 +35,8 @@ class RecordWrapper(gym.Wrapper):
         self.record_buffer = {"rgb": [], "state":[] , "action": [], "reward": [], "done": [], 
                               "truncated": [], "info": [], "return_reward": []}
 
-    def reset(self):
-        state, info = self.env.reset()
+    def reset(self, seed=None, options=None):
+        state, info = self.env.reset(seed, options)
         self.cumulative_reward = 0
         self.ep_len = 0
         info = self._add_info(info)
@@ -93,6 +93,8 @@ class RecordWrapper(gym.Wrapper):
             torch.save(self.prev_record_buffer, file_path)
             video_writer.release()
 
+    def render(self, **kwargs):
+        return self.env.render(**kwargs)
 
 class FixedFovealEnv(gym.Wrapper):
     def __init__(self, env: gym.Env, args):
@@ -209,6 +211,19 @@ class FixedFovealEnv(gym.Wrapper):
             if not done:
                 self.save_transition(info["fov_loc"])
         return fov_state, reward, done, truncated, info
+    
+    @property
+    def unwrapped(self):
+        """
+        Grabs unwrapped environment
+
+        Returns:
+            env (MujocoEnv): Unwrapped environment
+        """
+        if hasattr(self.env, "unwrapped"):
+            return self.env.unwrapped
+        else:
+            return self.env
 
 class FlexibleFovealEnvActionType(IntEnum):
     FOV_LOC = 0
