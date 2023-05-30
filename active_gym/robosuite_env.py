@@ -745,7 +745,8 @@ if __name__ == "__main__":
 
     # test gym & active wrapped robosuite env
     env_args = RobosuiteEnvArgs(
-        task="ToolHang",
+        task="TwoArmTransport",
+        robots=["Panda", "Panda"],
         seed=0,
         obs_size=(84, 84), # other params are default param
     )
@@ -770,4 +771,17 @@ if __name__ == "__main__":
         cam_obss = np.hstack(obss_dict[obs_name])
         cv2.imwrite(f"tmp/robosuite_env_wrapped_test_{obs_name}.png", cam_obss)
     env.close()
-    
+
+
+    print (f"perf test {env_args.task}")
+    import time
+    start = time.time()
+    env = make_active_robosuite_env(env_args)
+    obs, info = env.reset()
+    i = 0
+    while i < 100:
+        # print (f"step {i}")
+        obs, reward, done, truncated, info = env.step(env.action_space.sample())
+        i += 1
+    print (f"{i/(time.time()-start)} FPS")
+    env.close()
