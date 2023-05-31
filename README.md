@@ -67,6 +67,7 @@ DMCFixedFovealPeripheralEnv
 - Robosuite
 ```
 # All robosuite environments are supported by adding a movable camera.
+from active_gym import make_active_robosuite_env
 make_active_robosuite_env(task="<robosuite_env_name>", <more_args>)
 ```
 
