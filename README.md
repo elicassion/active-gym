@@ -48,24 +48,25 @@ for i in range(5):
 More examples can be found at `if __name__ == "__main__"` part in `atari_env.py`, `dmc_env.py`, and `robosuite_env.py`.
 
 ## Supported Types of Environments
-### 2D (Atari and DMC)
+- Atari
 ```
-# Atari
 AtariBaseEnv                        # Base environment with full observation
 AtariFixedFovealEnv                 # Active environment with limited foveal visual observation, at fixed size
 AtariFlexibleFovealEnv              # Active environment with options to change foveal observation size
 AtariFixedFovealPeripheralEnv       # Active environment with both foveal and peripheral observations
+```
 
-# DMC
+- DMC
+```
 DMCBaseEnv
 DMCFixedFovealEnv
 DMCFlexibleFovealEnv
 DMCFixedFovealPeripheralEnv
 ```
-### 3D with a free camera
+
+- Robosuite
 ```
-# Robosuite
-All robosuite environments are supported by adding a movable camera.
+# All robosuite environments are supported by adding a movable camera.
 make_active_robosuite_env(task="<robosuite_env_name>", <more_args>)
 ```
 
@@ -77,3 +78,5 @@ All suggestions on bug-fix, new features, and improvmets are welcomed. Please op
 ## Citation
 Please consider cite us if you find this repo helpful.
 
+## Acknowledgement
+We thank the implementation of the base environments used in this repo: [Atari](https://github.com/openai/atari-py), [DeepMind Control suite](https://github.com/deepmind/dm_control), and [Robosuite](https://github.com/ARISE-Initiative/robosuite).
