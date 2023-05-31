@@ -140,16 +140,16 @@ class RobosuiteActiveEnv(gym.Wrapper):
         super().__init__(env)
         self.init_fov_pos = env.activeview_camera_init_pos
         self.init_fov_quat = env.activeview_camera_init_quat
-        self.visual_action_mode = args.visual_action_mode
-        self.visual_action_dim = 6 # 6-DOF: pos, ang
-        visual_action_space_high = 1. * np.ones(self.visual_action_dim)
-        visual_action_space_low = -visual_action_space_high
-        self.visual_action_space = Box(low=visual_action_space_low, 
-                                       high=visual_action_space_high, 
+        self.sensory_action_mode = args.sensory_action_mode
+        self.sensory_action_dim = 6 # 6-DOF: pos, ang
+        sensory_action_space_high = 1. * np.ones(self.sensory_action_dim)
+        sensory_action_space_low = -sensory_action_space_high
+        self.sensory_action_space = Box(low=sensory_action_space_low, 
+                                       high=sensory_action_space_high, 
                                        dtype=np.float32)
         self.action_space = Dict({
-            "physical_action": self.env.action_space,
-            "visual_action": self.visual_action_space,
+            "motor_action": self.env.action_space,
+            "sensory_action": self.sensory_action_space,
         })
         self.active_camera_mover = None
 
@@ -165,14 +165,14 @@ class RobosuiteActiveEnv(gym.Wrapper):
     def step(self, action):
         """
         Args:
-            action : {"physical_action":
-                    "visual_action": }
+            action : {"motor_action":
+                    "sensory_action": }
         """
         # in robomimic, we need to first change this camera and then step
         # in order to return the observation from modified camera
-        sensory_action = action["visual_action"]
+        sensory_action = action["sensory_action"]
         self._sensory_step(sensory_action)
-        state, reward, done, truncated, info = self.env.step(action=action["physical_action"])
+        state, reward, done, truncated, info = self.env.step(action=action["motor_action"])
 
         info["fov_pos"] = self.fov_pos.copy()
         info["fov_quat"] = self.fov_quat.copy()
@@ -618,7 +618,7 @@ class RobosuiteEnvArgs:
         self.record = False
         self.clip_reward = False
         self.selected_obs_names = ["sideview_image", "active_view_image"]
-        self.visual_action_mode = "relative"
+        self.sensory_action_mode = "relative"
 
         # robosuite kwargs
         self.robots = "Panda"

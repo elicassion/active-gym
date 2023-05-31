@@ -195,8 +195,8 @@ if __name__ == "__main__":
     env_args = AtariEnvArgs(game="breakout", seed=42, obs_size=(84, 84), 
                         fov_size=(50, 50),
                         fov_init_loc=(33, 33),
-                        visual_action_mode="relative",
-                        visual_action_space=(-10.0, 10.0),
+                        sensory_action_mode="relative",
+                        sensory_action_space=(-10.0, 10.0),
                         resize_to_full=True,
                         )
     ori_env = AtariBaseEnv(env_args)
@@ -213,8 +213,8 @@ if __name__ == "__main__":
     env_args = AtariEnvArgs(game="breakout", seed=42, obs_size=(84, 84), 
                         fov_size=(50, 50),
                         fov_init_loc=(0, 0),
-                        visual_action_mode="absolute",
-                        visual_action_space=(-10.0, 10.0),
+                        sensory_action_mode="absolute",
+                        sensory_action_space=(-10.0, 10.0),
                         resize_to_full=False,
                         record=True)
     def make_env(env_name, seed, **kwargs):
@@ -231,8 +231,8 @@ if __name__ == "__main__":
     fov_env = [make_env(env_args.game, env_args.seed, frame_stack=3, action_repeat=1, 
                             fov_size=env_args.fov_size, 
                             fov_init_loc=env_args.fov_init_loc,
-                            visual_action_mode=env_args.visual_action_mode,
-                            visual_action_space=env_args.visual_action_space,
+                            sensory_action_mode=env_args.sensory_action_mode,
+                            sensory_action_space=env_args.sensory_action_space,
                             resize_to_full=env_args.resize_to_full,
                             mask_out=True,
                             training=False,
@@ -245,8 +245,8 @@ if __name__ == "__main__":
     ep_len_counter = 0
     while not done:
         obs, reward, done, _, _ = fov_env.step({
-                                "physical_action": fov_env.action_space["physical_action"].sample(), 
-                                "visual_action": np.array([[random.randint(0,10), random.randint(10,50)]])})
+                                "motor_action": fov_env.action_space["motor_action"].sample(), 
+                                "sensory_action": np.array([[random.randint(0,10), random.randint(10,50)]])})
         ep_len_counter += 1
         print (obs.shape, fov_env.envs[0].fov_loc)
     fov_env.envs[0].save_record_to_file("test_env_record_file.pt")
@@ -266,8 +266,8 @@ if __name__ == "__main__":
     fovea_fov_env = [make_env(env_args.game, env_args.seed, frame_stack=3, action_repeat=1, 
                             fov_size=env_args.fov_size, 
                             fov_init_loc=env_args.fov_init_loc,
-                            visual_action_mode=env_args.visual_action_mode,
-                            visual_action_space=env_args.visual_action_space,
+                            sensory_action_mode=env_args.sensory_action_mode,
+                            sensory_action_space=env_args.sensory_action_space,
                             resize_to_full=env_args.resize_to_full,
                             mask_out=True,
                             training=False,
@@ -286,9 +286,9 @@ if __name__ == "__main__":
                 action = np.array([[random.randint(10, 40), random.randint(15, 70)]])
             
             ac = {
-                "physical_action": fovea_fov_env.action_space["physical_action"].sample(), 
-                "visual_action": action,
-                "visual_action_type": np.array((action_type.value,))
+                "motor_action": fovea_fov_env.action_space["motor_action"].sample(), 
+                "sensory_action": action,
+                "sensory_action_type": np.array((action_type.value,))
             }
             # print (ac)
             obs, reward, done, _, _ = fovea_fov_env.step(ac)
@@ -302,8 +302,8 @@ if __name__ == "__main__":
                         fov_size=(50, 50),
                         fov_init_loc=(0, 0),
                         peripheral_res=(20, 20),
-                        visual_action_mode="absolute",
-                        visual_action_space=(-10.0, 10.0),
+                        sensory_action_mode="absolute",
+                        sensory_action_space=(-10.0, 10.0),
                         resize_to_full=False,
                         record=True)
     fov_env = AtariFixedFovealPeripheralEnv(env_args)
@@ -312,8 +312,8 @@ if __name__ == "__main__":
     ep_len_counter = 0
     while not done:
         obs, reward, done, _, _ = fov_env.step({
-                                "physical_action": fov_env.action_space["physical_action"].sample(), 
-                                "visual_action": np.array((random.randint(0,10), random.randint(10,50)))})
+                                "motor_action": fov_env.action_space["motor_action"].sample(), 
+                                "sensory_action": np.array((random.randint(0,10), random.randint(10,50)))})
         ep_len_counter += 1
         print (obs.shape, fov_env.fov_loc)
         # print (obs)

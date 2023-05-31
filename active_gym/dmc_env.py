@@ -303,8 +303,8 @@ if __name__ == "__main__":
     env_args = DMCEnvArgs(domain_name="reacher", task_name="easy", seed=42, obs_size=(84, 84), 
                             fov_size=(50, 50),
                             fov_init_loc=(0, 0),
-                            visual_action_mode="absolute",
-                            visual_action_space=(-10.0, 10.0),
+                            sensory_action_mode="absolute",
+                            sensory_action_space=(-10.0, 10.0),
                             resize_to_full=False,
                             from_pixels=True, gray=True,
                         )
@@ -312,16 +312,16 @@ if __name__ == "__main__":
     fixed_foveal_env.reset()
     while not done:
         obs, reward, done, _, _ = fixed_foveal_env.step({
-                                "physical_action": fixed_foveal_env.action_space["physical_action"].sample(), 
-                                "visual_action": np.array([random.randint(0,10), random.randint(10,50)])})
+                                "motor_action": fixed_foveal_env.action_space["motor_action"].sample(), 
+                                "sensory_action": np.array([random.randint(0,10), random.randint(10,50)])})
         print (obs.shape, fixed_foveal_env.fov_loc)
 
     print ("flexible foveal")
     env_args = DMCEnvArgs(domain_name="reacher", task_name="easy", seed=42, obs_size=(84, 84), 
                             fov_size=(50, 50),
                             fov_init_loc=(0, 0),
-                            visual_action_mode="absolute",
-                            visual_action_space=(-10.0, 10.0),
+                            sensory_action_mode="absolute",
+                            sensory_action_space=(-10.0, 10.0),
                             resize_to_full=False,
                             from_pixels=True, gray=True,
                         )
@@ -336,9 +336,9 @@ if __name__ == "__main__":
                 action = np.array([random.randint(10, 40), random.randint(15, 70)])
             
             ac = {
-                "physical_action": flexible_foveal_env.action_space["physical_action"].sample(), 
-                "visual_action": action,
-                "visual_action_type": np.array((action_type.value,))
+                "motor_action": flexible_foveal_env.action_space["motor_action"].sample(), 
+                "sensory_action": action,
+                "sensory_action_type": np.array((action_type.value,))
             }
             # print (ac)
             obs, reward, done, _, _ = flexible_foveal_env.step(ac)
@@ -349,8 +349,8 @@ if __name__ == "__main__":
                             fov_size=(50, 50),
                             fov_init_loc=(0, 0),
                             peripheral_res=(20, 20),
-                            visual_action_mode="absolute",
-                            visual_action_space=(-10.0, 10.0),
+                            sensory_action_mode="absolute",
+                            sensory_action_space=(-10.0, 10.0),
                             resize_to_full=False,
                             record=True,
                             from_pixels=True
@@ -360,8 +360,8 @@ if __name__ == "__main__":
     done = False
     while not done:
         obs, reward, done, _, _ = foveal_peripheral_env.step({
-                                "physical_action": foveal_peripheral_env.action_space["physical_action"].sample(), 
-                                "visual_action": np.array((random.randint(0,10), random.randint(10,50)))
+                                "motor_action": foveal_peripheral_env.action_space["motor_action"].sample(), 
+                                "sensory_action": np.array((random.randint(0,10), random.randint(10,50)))
                                 })
         print (obs.shape, foveal_peripheral_env.fov_loc)
         # print (obs)

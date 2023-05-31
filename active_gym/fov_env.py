@@ -103,11 +103,11 @@ class FixedFovealEnv(gym.Wrapper):
         self.fov_init_loc: Tuple[int, int] = args.fov_init_loc
         assert (np.array(self.fov_size) < np.array(self.obs_size)).all()
 
-        self.visual_action_mode: str = args.visual_action_mode # "absolute", "relative"
-        if self.visual_action_mode == "relative":
-            self.visual_action_space = np.array(args.visual_action_space)
-        elif self.visual_action_mode == "absolute":
-            self.visual_action_space = np.array(self.obs_size) - np.array(self.fov_size)
+        self.sensory_action_mode: str = args.sensory_action_mode # "absolute", "relative"
+        if self.sensory_action_mode == "relative":
+            self.sensory_action_space = np.array(args.sensory_action_space)
+        elif self.sensory_action_mode == "absolute":
+            self.sensory_action_space = np.array(self.obs_size) - np.array(self.fov_size)
 
         self.resize: Resize = Resize(self.env.obs_size) if args.resize_to_full else None
 
@@ -115,9 +115,9 @@ class FixedFovealEnv(gym.Wrapper):
 
         # set gym.Env attribute
         self.action_space = Dict({
-            "physical_action": self.env.action_space,
-            "visual_action": Box(low=self.visual_action_space[0], 
-                                 high=self.visual_action_space[1], dtype=int),
+            "motor_action": self.env.action_space,
+            "sensory_action": Box(low=self.sensory_action_space[0], 
+                                 high=self.sensory_action_space[1], dtype=int),
         })
 
         if args.mask_out:
@@ -158,8 +158,8 @@ class FixedFovealEnv(gym.Wrapper):
     def _clip_to_valid_fov(self, loc):
         return np.rint(np.clip(loc, 0, np.array(self.env.obs_size) - np.array(self.fov_size))).astype(int)
 
-    def _clip_to_valid_visual_action_space(self, action):
-        return np.rint(np.clip(action, *self.visual_action_space)).astype(int)
+    def _clip_to_valid_sensory_action_space(self, action):
+        return np.rint(np.clip(action, *self.sensory_action_space)).astype(int)
     
     def _get_fov_state(self, full_state):
         fov_state = full_state[..., self.fov_loc[0]:self.fov_loc[0]+self.fov_size[0],
@@ -182,11 +182,11 @@ class FixedFovealEnv(gym.Wrapper):
         elif type(action) is Tuple:
             action = np.array(action)
 
-        if self.visual_action_mode == "absolute":
+        if self.sensory_action_mode == "absolute":
             action = self._clip_to_valid_fov(action)
             self.fov_loc = action
-        elif self.visual_action_mode == "relative":
-            action = self._clip_to_valid_visual_action_space(action)
+        elif self.sensory_action_mode == "relative":
+            action = self._clip_to_valid_sensory_action_space(action)
             fov_loc = self.fov_loc + action
             self.fov_loc = self._clip_to_valid_fov(fov_loc)
 
@@ -200,12 +200,12 @@ class FixedFovealEnv(gym.Wrapper):
 
     def step(self, action):
         """
-        action : {"physical_action":
-                  "visual_action": }
+        action : {"motor_action":
+                  "sensory_action": }
         """
-        # print ("in env", action, action["physical_action"], action["visual_action"])
-        state, reward, done, truncated, info = self.env.step(action=action["physical_action"])
-        fov_state = self._fov_step(full_state=state, action=action["visual_action"])
+        # print ("in env", action, action["motor_action"], action["sensory_action"])
+        state, reward, done, truncated, info = self.env.step(action=action["motor_action"])
+        fov_state = self._fov_step(full_state=state, action=action["sensory_action"])
         info["fov_loc"] = self.fov_loc.copy()
         if self.record:
             if not done:
@@ -232,7 +232,7 @@ class FlexibleFovealEnvActionType(IntEnum):
 class FlexibleFovealEnv(FixedFovealEnv):
     def __init__(self, env, args):
         super().__init__(env, args)
-        self.action_space["visual_action_type"] = Discrete(len(FlexibleFovealEnvActionType))
+        self.action_space["sensory_action_type"] = Discrete(len(FlexibleFovealEnvActionType))
         self.fov_init_res: Tuple[int, int] = args.fov_size
         self.fov_res: np.ndarray = np.empty_like(self.fov_init_res)
         self._init_fov_res()
@@ -262,8 +262,8 @@ class FlexibleFovealEnv(FixedFovealEnv):
     def _clip_to_valid_fov(self, loc):
         return np.rint(np.clip(loc, 0, np.array(self.env.obs_size) - np.array(self.fov_res))).astype(int)
 
-    def _clip_to_valid_visual_action_space(self, action):
-        return np.rint(np.clip(action, *self.visual_action_space)).astype(int)
+    def _clip_to_valid_sensory_action_space(self, action):
+        return np.rint(np.clip(action, *self.sensory_action_space)).astype(int)
     
     def _interpolate_to_fov_size(self, s):
         s = self.interpolate_resize_to(torch.from_numpy(s))
@@ -304,11 +304,11 @@ class FlexibleFovealEnv(FixedFovealEnv):
         action_type = FlexibleFovealEnvActionType(action_type)
 
         if action_type == FlexibleFovealEnvActionType.FOV_LOC:
-            if self.visual_action_mode == "absolute":
+            if self.sensory_action_mode == "absolute":
                 action = self._clip_to_valid_fov(action)
                 self.fov_loc = action
-            elif self.visual_action_mode == "relative":
-                action = self._clip_to_valid_visual_action_space(action)
+            elif self.sensory_action_mode == "relative":
+                action = self._clip_to_valid_sensory_action_space(action)
                 fov_loc = self.fov_loc + action
                 self.fov_loc = self._clip_to_valid_fov(fov_loc)
         elif action_type == FlexibleFovealEnvActionType.FOV_RES:
@@ -328,17 +328,17 @@ class FlexibleFovealEnv(FixedFovealEnv):
 
     def step(self, action):
         """
-        action : {"physical_action":
-                  "visual_action": 
-                  "visual_action_type": }
+        action : {"motor_action":
+                  "sensory_action": 
+                  "sensory_action_type": }
         action["action_type"]: FoveaFOVAtariEnvActionType.FOV_LOC (0): fov_loc
                                FoveaFOVAtariEnvActionType.FOV_RES (1): fov_res
         """
-        # print ("in env", action, action["physical_action"], action["visual_action"])
-        state, reward, done, truncated, info = self.env.step(action=action["physical_action"])
+        # print ("in env", action, action["motor_action"], action["sensory_action"])
+        state, reward, done, truncated, info = self.env.step(action=action["motor_action"])
         fov_state = self._fov_step(full_state=state, 
-                                   action=action["visual_action"], 
-                                   action_type=action["visual_action_type"])
+                                   action=action["sensory_action"], 
+                                   action_type=action["sensory_action_type"])
         info["fov_loc"] = self.fov_loc.copy()
         info["fov_res"] = self.fov_res.copy()
         if self.record:
