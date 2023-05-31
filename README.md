@@ -71,6 +71,8 @@ from active_gym import make_active_robosuite_env
 make_active_robosuite_env(task="<robosuite_env_name>", <more_args>)
 ```
 
+Note: `frame stacking` and `action repeat` are intergrated in Atari and DMC environments.
+
 ## TODO List
 All suggestions on bug-fix, new features, and improvmets are welcomed. Please open an issue or contact jishang\[at\]cs.stonybrook.edu
 - [ ] Detailed documentation
