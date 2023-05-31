@@ -36,7 +36,9 @@ try:
         ActiveTwoArmLift,
         ActiveTwoArmPegInHole,
         ActiveTwoArmHandover,
-        ActiveTwoArmTransport
+        ActiveTwoArmTransport,
+        RobosuiteEnvArgs,
+        make_active_robosuite_env
     )
 except:
     pass

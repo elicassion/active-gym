@@ -5,7 +5,7 @@ setup(
     version='0.1',
     author='Jinghuan Shang',
     description=('Gym-like wrapper to implement Active Reinforcement Learning environments based on existing environments'),
-    keywords='active-rl rl gym atari deepmind',
+    keywords='active-reinforcement-learning active-rl reinforcement learning rl gym atari deepmind robosuite',
     packages=find_packages(),
     install_requires=[
         "mujoco",
@@ -16,4 +16,9 @@ setup(
         "torch"
         "torchvision"
     ],
+    extras_require={
+        "robosuite": [
+            "robosuite",
+        ],
+    },
 )

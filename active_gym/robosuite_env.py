@@ -629,6 +629,7 @@ class RobosuiteEnvArgs:
         self.use_camera_obs = True
         self.camera_names = ['frontview', 'birdview', 'agentview', 'sideview', 'robot0_robotview', 'robot0_eye_in_hand', "active_view"]
         self.reward_shaping = True
+        self.render_gpu_device_id = int(os.environ.get("MUJOCO_EGL_DEVICE_ID", -1))
 
         for k, v in kwargs.items():
             self.__setattr__(k, v)
@@ -644,7 +645,8 @@ def get_robosuite_kwargs(args: RobosuiteEnvArgs):
         "camera_names": args.camera_names,
         "camera_heights": args.obs_size[0],
         "camera_widths": args.obs_size[1],
-        "reward_shaping": args.reward_shaping
+        "reward_shaping": args.reward_shaping,
+        # "render_gpu_device_id": args.render_gpu_device_id,
     }
     return robosuite_kwargs
 
@@ -775,13 +777,15 @@ if __name__ == "__main__":
 
     print (f"perf test {env_args.task}")
     import time
-    start = time.time()
     env = make_active_robosuite_env(env_args)
     obs, info = env.reset()
+    start = time.time()
     i = 0
     while i < 100:
         # print (f"step {i}")
         obs, reward, done, truncated, info = env.step(env.action_space.sample())
         i += 1
+        if done:
+            env.reset()
     print (f"{i/(time.time()-start)} FPS")
     env.close()
