@@ -33,10 +33,10 @@ env_args = AtariEnvArgs(
     game=env_name, 
     seed=seed, 
     obs_size=(84, 84), 
-    fov_size=(30, 30),              # the partial observation size
-    fov_init_loc=(0, 0),            # the initial partial observation location
-    visual_action_mode="absolute",  # change the observation location by abs coordinates
-    record=False,                   # it integrates recording, if needed
+    fov_size=(30, 30),               # the partial observation size
+    fov_init_loc=(0, 0),             # the initial partial observation location
+    sensory_action_mode="absolute",  # change the observation location by abs coordinates
+    record=False,                    # it integrates recording, if needed
 )
 env = AtariFixedFovealEnv(env_args)
 obs, info = env.reset()
