@@ -40,8 +40,8 @@ try:
         RobosuiteEnvArgs,
         make_active_robosuite_env
     )
-except:
-    pass
+except Exception as e:
+    print (e)
 
 from .fov_env import (
     RecordWrapper,

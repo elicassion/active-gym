@@ -65,7 +65,7 @@ class RobosuiteGymWrapper(Wrapper, gym.Env):
         self.env.spec = None
 
         # set up observation and action spaces
-        obs = self.env.reset()
+        obs, _ = self.reset()
         obs_space_dict = {}
         self.modality_dims = {key: obs[key].shape for key in self.keys}
         for modality_name in self.modality_dims:
@@ -74,6 +74,8 @@ class RobosuiteGymWrapper(Wrapper, gym.Env):
             low = -high
             modality_space = Box(low, high)
             obs_space_dict[modality_name] = modality_space
+        self.observation_space = Dict(obs_space_dict)
+        # print (self.observation_space)
 
         low, high = self.env.action_spec
         self.action_space = Box(low, high)
@@ -86,6 +88,8 @@ class RobosuiteGymWrapper(Wrapper, gym.Env):
             if "image" in k:
                 obs[k] = obs[k].astype(np.float32)/255.
                 obs[k] = obs[k][::-1, ...] # !important to have this change, don't know why it is upside down
+                obs[k] = np.moveaxis(obs[k], -1, 0)
+                # print (obs[k].shape)
         return obs
     
     def _process_obs(self, obs):
@@ -625,6 +629,7 @@ class RobosuiteEnvArgs:
         self.controller_configs = load_controller_config(default_controller="OSC_POSE")
         self.has_renderer = False
         self.has_offscreen_renderer = True
+        self.horizon = 500
         self.use_object_obs = False
         self.use_camera_obs = True
         self.camera_names = ['frontview', 'birdview', 'agentview', 'sideview', 'robot0_robotview', 'robot0_eye_in_hand', "active_view"]
@@ -640,6 +645,7 @@ def get_robosuite_kwargs(args: RobosuiteEnvArgs):
         "controller_configs": args.controller_configs,
         "has_renderer": args.has_renderer,
         "has_offscreen_renderer": args.has_offscreen_renderer,
+        "horizon": args.horizon,
         "use_object_obs": args.use_object_obs,
         "use_camera_obs": args.use_camera_obs,
         "camera_names": args.camera_names,
