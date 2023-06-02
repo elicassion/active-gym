@@ -80,6 +80,16 @@ All suggestions on bug-fix, new features, and improvmets are welcomed. Please op
 
 ## Citation
 Please consider cite us if you find this repo helpful.
+```
+@misc{shang2023active,
+    title={Active Reinforcement Learning under Limited Visual Observability},
+    author={Jinghuan Shang and Michael S. Ryoo},
+    year={2023},
+    eprint={2306.00975},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+```
 
 ## Acknowledgement
-We thank the implementation of the base environments used in this repo: [Atari](https://github.com/openai/atari-py), [DeepMind Control suite](https://github.com/deepmind/dm_control), and [Robosuite](https://github.com/ARISE-Initiative/robosuite).
+We thank the implementation of the base environments used in this repo: [Atari](https://github.com/openai/atari-py), [DeepMind Control suite](https://github.com/deepmind/dm_control), [Robosuite](https://github.com/ARISE-Initiative/robosuite), and [dmc2gym](https://github.com/denisyarats/dmc2gym).
