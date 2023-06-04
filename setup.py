@@ -9,12 +9,12 @@ setup(
     packages=find_packages(),
     install_requires=[
         "mujoco",
-        "mujoco-py>=2.1.2.14"
-        "atari-py"
-        "dm-control==1.0.11"
-        "gym"
-        "torch"
-        "torchvision"
+        "mujoco-py>=2.1.2.14",
+        "atari-py",
+        "dm-control==1.0.11",
+        "gym",
+        "torch",
+        "torchvision",
     ],
     extras_require={
         "robosuite": [
