@@ -81,13 +81,12 @@ All suggestions on bug-fix, new features, and improvmets are welcomed. Please op
 ## Citation
 Please consider cite us if you find this repo helpful.
 ```
-@misc{shang2023active,
+@article{shang2023active,
     title={Active Reinforcement Learning under Limited Visual Observability},
     author={Jinghuan Shang and Michael S. Ryoo},
+    journal={arXiv preprint},
     year={2023},
     eprint={2306.00975},
-    archivePrefix={arXiv},
-    primaryClass={cs.LG}
 }
 ```
 
