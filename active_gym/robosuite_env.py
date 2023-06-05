@@ -14,8 +14,15 @@ import robosuite
 from robosuite.controllers import load_controller_config
 import robosuite.environments.manipulation as manipulation
 from robosuite.models.tasks import Task
-from robosuite.utils.camera_utils import CameraMover
-from robosuite.utils.mjcf_utils import find_elements, find_parent
+from robosuite.utils.camera_utils import (
+    CameraMover,
+    get_camera_intrinsic_matrix,
+    get_camera_extrinsic_matrix
+)
+from robosuite.utils.mjcf_utils import (
+    find_elements, 
+    find_parent
+)
 from robosuite.wrappers import Wrapper
 
 from active_gym.fov_env import (
@@ -156,15 +163,48 @@ class RobosuiteActiveEnv(gym.Wrapper):
             "sensory_action": self.sensory_action_space,
         })
         self.active_camera_mover = None
+        self.active_camera_intrinsic = None
+
+        self.fov_pos = None
+        self.fov_quat = None
+
+        self.fixed_cam_extrinsic = None
+        self.movable_cam_extrinsic = None
+
+        # self.record = args.record # not sure to exposed here for improve efficiency
 
         self.reset()
+
+    def _get_camera_extrinsic_matrix(self, camera_name: str) -> np.ndarray:
+        return get_camera_extrinsic_matrix(sim=self.env.unwrapped.sim, camera_name=camera_name)
+    
+    def _get_camera_intrinsic_matrix(self, camera_name: str) -> np.ndarray:
+        return get_camera_intrinsic_matrix(sim=self.env.unwrapped.sim, camera_name=camera_name)
+
+    def _get_all_fixed_cam_extrinsic(self) -> Dict[np.ndarray]:
+        all_extrinsic = {}
+        for camera_name in self.env.unwrapped.camera_names:
+            if "active" in camera_name or "eye" in camera_name: # skip movable cameras
+                continue
+            extrinsic = self._get_camera_extrinsic_matrix(camera_name=camera_name)
+            all_extrinsic[camera_name] = extrinsic
+        return all_extrinsic
+    
+    def _get_all_movable_cam_extrinsic(self):
+        all_extrinsic = {}
+        for camera_name in self.env.unwrapped.camera_names:
+            if "active" in camera_name or "eye" in camera_name:
+                extrinsic = self._get_camera_extrinsic_matrix(camera_name=camera_name)
+                all_extrinsic[camera_name] = extrinsic
 
     def _sensory_step(self, sensory_action):
         movement, rotation = sensory_action[:3], sensory_action[3:]
         self.active_camera_mover.move_camera(direction=movement, scale=0.05)
         self.active_camera_mover.rotate_camera(point=None, axis=rotation, angle=5) # +up, +left, +clcwise
+
         activeview_camera_pos, activeview_camera_quat = self.active_camera_mover.get_camera_pose()
         self.fov_pos, self.fov_quat = activeview_camera_pos, activeview_camera_quat
+        self.movable_cam_extrinsic = self._get_all_movable_cam_extrinsic()
 
     def step(self, action):
         """
@@ -177,13 +217,10 @@ class RobosuiteActiveEnv(gym.Wrapper):
         sensory_action = action["sensory_action"]
         self._sensory_step(sensory_action)
         state, reward, done, truncated, info = self.env.step(action=action["motor_action"])
-
+        
         info["fov_pos"] = self.fov_pos.copy()
         info["fov_quat"] = self.fov_quat.copy()
-        if self.record:
-            if not done:
-                self.save_transition(info["fov_loc"])
-                self.save_transition(info["fov_quat"])
+        info["movable_cam_extrinsic"] = self.movable_cam_extrinsic.copy()
         
         # use active_view_image for the image observation from active camera
         # others are also returned for convienience
@@ -194,18 +231,21 @@ class RobosuiteActiveEnv(gym.Wrapper):
             env=self.env.unwrapped,
             camera="active_view",
         )
+
         activeview_camera_pos, activeview_camera_quat = self.active_camera_mover.get_camera_pose()
         self.fov_pos, self.fov_quat = activeview_camera_pos, activeview_camera_quat
+        self.movable_cam_extrinsic = self._get_all_movable_cam_extrinsic()
     
     def reset(self, seed=None, options=None):
         obs, info = self.env.reset(seed, options)
         self._init_active_camera()
+        self.fixed_cam_extrinsic = self._get_all_fixed_cam_extrinsic()
+        self.active_camera_intrinsic = self._get_camera_intrinsic_matrix("active_view")
+
         info["fov_pos"] = self.fov_pos.copy()
         info["fov_quat"] = self.fov_quat.copy()
-        if self.record:
-            if not done:
-                self.save_transition(info["fov_loc"])
-                self.save_transition(info["fov_quat"])
+        info["fixed_cam_extrinsic"] = self.fixed_cam_extrinsic.copy()
+        info["movable_cam_extrinsic"] = self.movable_cam_extrinsic.copy()
         return obs, info
     
     @property
