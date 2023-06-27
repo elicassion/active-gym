@@ -206,9 +206,12 @@ class RobosuiteActiveEnv(gym.Wrapper):
         return all_extrinsic
 
     def _sensory_step(self, sensory_action):
-        movement, rotation = sensory_action[:3], sensory_action[3:]
-        self.active_camera_mover.move_camera(direction=movement, scale=0.05)
-        self.active_camera_mover.rotate_camera(point=None, axis=rotation, angle=5) # +up, +left, +clcwise
+        if np.all(sensory_action == 0):
+            pass
+        else:
+            movement, rotation = sensory_action[:3], sensory_action[3:]
+            self.active_camera_mover.move_camera(direction=movement, scale=0.05)
+            self.active_camera_mover.rotate_camera(point=None, axis=rotation, angle=5) # +up, +left, +clcwise
 
         if self.return_camera_matrix:
             activeview_camera_pos, activeview_camera_quat = self.active_camera_mover.get_camera_pose()
