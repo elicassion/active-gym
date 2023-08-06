@@ -735,7 +735,7 @@ def make_base_robosuite_env(args: RobosuiteEnvArgs):
     robosuite_kwargs = get_robosuite_kwargs(args)
     # double check it does not include that
     if "active_view" in args.camera_name:
-        args.camera_name.remove("active_view")
+        args.camera_names.remove("active_view")
         args.selected_obs_names.remove("active_view_image")
     env = robosuite.make(env_name=args.task, **robosuite_kwargs)
     env = RobosuiteGymWrapper(env, keys=args.selected_obs_names)
