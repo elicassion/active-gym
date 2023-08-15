@@ -337,10 +337,7 @@ class RobosuiteActiveEnv(gym.Wrapper):
             # print ("video length", video_len)
             for i in range(video_len):
                 frames = [self.prev_record_buffer["state"][i][camera] for camera in selected_cameras]
-                # frames = (np.moveaxis(np.hstack(frames), 0, -1)*255.).astype(np.uint8)
                 frames = (np.moveaxis(np.hstack(frames), 0, -1)*255.).astype(np.uint8)
-                # print (frames.shape, np.sum(frames))
-                # video_writer.write(frames)
                 video_writer.append_data(frames)
             # video_writer.release()
             video_writer.close()
@@ -366,26 +363,6 @@ class RobosuiteActiveEnv(gym.Wrapper):
         else:
             return self.env
         
-
-class RobosuiteSActiveEnv(RobosuiteActiveEnv):
-    def _init_active_camera(self):
-        self.active_camera_mover = TrueCameraMover(
-            env=self.env.unwrapped,
-            camera="active_view",
-        )
-        for _ in range(np.random.randint(3, 6)):
-            self.active_camera_mover.move_camera(direction=np.array([0.05, 0.05, 0.05], dtype=np.float32), scale=np.random.randn(3))
-            r = np.random.randn(3)
-            r[-1] = 0
-            self.active_camera_mover.rotate_camera(r, scale=3.)
-
-        if self.return_camera_matrix:
-            activeview_camera_pos, activeview_camera_quat = self.active_camera_mover.get_camera_pose()
-            self.fov_pos, self.fov_quat = activeview_camera_pos, activeview_camera_quat
-            self.movable_cam_extrinsic = self._get_all_movable_cam_extrinsic()
-
-
-
 def make_robosuite_active(load_model):
     """
     The decorator to add an controllable camera to robosuite
