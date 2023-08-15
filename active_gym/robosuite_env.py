@@ -6,7 +6,9 @@ from PIL import Image
 from typing import Tuple, Union
 
 import cv2
+import imageio
 import numpy as np
+import torch
 
 import gymnasium as gym
 from gymnasium.spaces import Box, Discrete, Dict
@@ -24,11 +26,64 @@ from robosuite.utils.mjcf_utils import (
     find_elements, 
     find_parent
 )
+import robosuite.utils.transform_utils as T
 from robosuite.wrappers import Wrapper
 
 from active_gym.fov_env import (
     RecordWrapper
 )
+
+def euler_to_rotation_matrix(pyr: np.ndarray):
+    pitch, yaw, roll = pyr
+    # Pitch (X-axis rotation)
+    R_x = np.array([
+        [1, 0, 0],
+        [0, np.cos(pitch), -np.sin(pitch)],
+        [0, np.sin(pitch), np.cos(pitch)]
+    ])
+    
+    # Yaw (Y-axis rotation)
+    R_y = np.array([
+        [np.cos(yaw), 0, np.sin(yaw)],
+        [0, 1, 0],
+        [-np.sin(yaw), 0, np.cos(yaw)]
+    ])
+    
+    # Roll (Z-axis rotation)
+    R_z = np.array([
+        [np.cos(roll), -np.sin(roll), 0],
+        [np.sin(roll), np.cos(roll), 0],
+        [0, 0, 1]
+    ])
+    
+    R = np.dot(R_z, np.dot(R_y, R_x))
+
+    R_4x4 = np.eye(4)
+    R_4x4[:3, :3] = R
+    R_4x4[:3, 3] = np.array([0, 0, 0])
+    
+    return R_4x4
+
+class TrueCameraMover(CameraMover):
+
+    def rotate_camera(self, pyr, scale=5.0):
+        """
+        angle: [-1, 1]
+        """
+        camera_pos = np.array(self.env.sim.data.get_mocap_pos(self.mover_body_name))
+        camera_rot = T.quat2mat(T.convert_quat(self.env.sim.data.get_mocap_quat(self.mover_body_name), to="xyzw"))
+        pyr = np.pi * pyr * scale / 180.0
+        R = euler_to_rotation_matrix(pyr)
+        camera_pose = np.zeros((4, 4))
+        camera_pose[:3, :3] = camera_rot
+        camera_pose[:3, 3] = camera_pos
+        camera_pose = camera_pose @ R
+        # Update camera pose
+        pos, quat = camera_pose[:3, 3], T.mat2quat(camera_pose[:3, :3])
+        self.set_camera_pose(pos=pos, quat=quat)
+
+        return pos, quat
+
 
 class RobosuiteGymWrapper(Wrapper, gym.Env):
     metadata = None
@@ -143,6 +198,9 @@ class RobosuiteGymWrapper(Wrapper, gym.Env):
         # Dummy args used to mimic Wrapper interface
         return self.env.reward()
     
+    def render(self, **kwargs):
+        return 0
+
     def close(self):
         self.env.close()
 
@@ -174,7 +232,7 @@ class RobosuiteActiveEnv(gym.Wrapper):
         self.fixed_cam_extrinsic = None
         self.movable_cam_extrinsic = None
 
-        # self.record = args.record # not sure to exposed here for improve efficiency
+        self.record = args.record # not sure to exposed here for improve efficiency
 
         self.reset()
 
@@ -210,8 +268,11 @@ class RobosuiteActiveEnv(gym.Wrapper):
             pass
         else:
             movement, rotation = sensory_action[:3], sensory_action[3:]
-            self.active_camera_mover.move_camera(direction=movement, scale=0.05)
-            self.active_camera_mover.rotate_camera(point=None, axis=rotation, angle=5) # +up, +left, +clcwise
+            # print ("movement, rotation", movement, rotation)
+            if len(rotation) < 3:
+                rotation = np.concatenate([rotation, np.zeros((3-len(rotation), ), dtype=rotation.dtype)])
+            self.active_camera_mover.move_camera(direction=movement, scale=0.01)
+            self.active_camera_mover.rotate_camera(pyr=rotation, scale=1.0) # +up, +left, +clcwise
 
         if self.return_camera_matrix:
             activeview_camera_pos, activeview_camera_quat = self.active_camera_mover.get_camera_pose()
@@ -240,7 +301,7 @@ class RobosuiteActiveEnv(gym.Wrapper):
         return state, reward, done, truncated, info
     
     def _init_active_camera(self):
-        self.active_camera_mover = CameraMover(
+        self.active_camera_mover = TrueCameraMover(
             env=self.env.unwrapped,
             camera="active_view",
         )
@@ -263,6 +324,34 @@ class RobosuiteActiveEnv(gym.Wrapper):
             info["fixed_cam_extrinsic"] = copy.deepcopy(self.fixed_cam_extrinsic)
             info["movable_cam_extrinsic"] = copy.deepcopy(self.movable_cam_extrinsic)
         return obs, info
+
+    def save_record_to_file(self, file_path: str, selected_cameras=["active_view_image"]):
+        if self.record:
+            video_path = file_path.replace(".pt", ".mp4")
+            size = self.prev_record_buffer["state"][0][selected_cameras[0]].shape[:2][::-1]
+            fps = 10
+            # print (size)
+            video_writer = imageio.get_writer(video_path, fps=fps)
+            # video_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, size)
+            video_len = len(self.prev_record_buffer["state"])
+            # print ("video length", video_len)
+            for i in range(video_len):
+                frames = [self.prev_record_buffer["state"][i][camera] for camera in selected_cameras]
+                # frames = (np.moveaxis(np.hstack(frames), 0, -1)*255.).astype(np.uint8)
+                frames = (np.moveaxis(np.hstack(frames), 0, -1)*255.).astype(np.uint8)
+                # print (frames.shape, np.sum(frames))
+                # video_writer.write(frames)
+                video_writer.append_data(frames)
+            # video_writer.release()
+            video_writer.close()
+            # empty buffer
+            self.prev_record_buffer["rgb"] = video_path
+            # self.prev_record_buffer["state"] = [0] * len(self.prev_record_buffer["reward"])
+            torch.save(self.prev_record_buffer, file_path)
+            
+
+    # def render(self, **kwargs):
+    #     return 0
     
     @property
     def unwrapped(self):
@@ -276,6 +365,26 @@ class RobosuiteActiveEnv(gym.Wrapper):
             return self.env.unwrapped
         else:
             return self.env
+        
+
+class RobosuiteSActiveEnv(RobosuiteActiveEnv):
+    def _init_active_camera(self):
+        self.active_camera_mover = TrueCameraMover(
+            env=self.env.unwrapped,
+            camera="active_view",
+        )
+        for _ in range(np.random.randint(3, 6)):
+            self.active_camera_mover.move_camera(direction=np.array([0.05, 0.05, 0.05], dtype=np.float32), scale=np.random.randn(3))
+            r = np.random.randn(3)
+            r[-1] = 0
+            self.active_camera_mover.rotate_camera(r, scale=3.)
+
+        if self.return_camera_matrix:
+            activeview_camera_pos, activeview_camera_quat = self.active_camera_mover.get_camera_pose()
+            self.fov_pos, self.fov_quat = activeview_camera_pos, activeview_camera_quat
+            self.movable_cam_extrinsic = self._get_all_movable_cam_extrinsic()
+
+
 
 def make_robosuite_active(load_model):
     """
@@ -287,12 +396,17 @@ def make_robosuite_active(load_model):
         mujoco_arena = self.model.mujoco_arena
 
         # get a default init active camera if not provided
-        if self.activeview_camera_init_pos is None or \
-            self.activeview_camera_init_quat is None:
-            camera = find_elements(root=mujoco_arena.worldbody, tags="camera", attribs={"name": "sideview"}, return_first=True)
-            self.activeview_camera_init_pos = np.array([float(x) for x in camera.get("pos").split(" ")])
-            self.activeview_camera_init_quat = np.array([float(x) for x in camera.get("quat").split(" ")])
-            # print (self.activeview_camera_init_pos, self.activeview_camera_init_quat)
+        
+        if self.init_view is None:
+            if self.activeview_camera_init_pos is None or \
+                self.activeview_camera_init_quat is None:
+                self.init_view = "sideview"
+        
+        camera = find_elements(root=mujoco_arena.worldbody, tags="camera", attribs={"name": self.init_view}, return_first=True)
+        self.activeview_camera_init_pos = np.array([float(x) for x in camera.get("pos").split(" ")])
+        # self.activeview_camera_init_pos = np.array([float(x) for x in camera.get("pos").split(" ")])
+        self.activeview_camera_init_quat = np.array([float(x) for x in camera.get("quat").split(" ")])
+        # print (self.activeview_camera_init_pos, self.activeview_camera_init_quat)
 
         # add a camera
         mujoco_arena.set_camera(
@@ -317,10 +431,12 @@ class ActiveLift(robosuite.environments.manipulation.lift.Lift):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -333,10 +449,12 @@ class ActiveStack(manipulation.stack.Stack):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -348,11 +466,13 @@ class ActiveNutAssembly(manipulation.nut_assembly.NutAssembly):
     def __init__(
         self, 
         activeview_camera_init_pos=None, 
-        activeview_camera_init_quat=None, 
+        activeview_camera_init_quat=None,
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -365,10 +485,12 @@ class ActiveNutAssemblySingle(manipulation.nut_assembly.NutAssemblySingle):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -381,10 +503,12 @@ class ActiveNutAssemblySquare(manipulation.nut_assembly.NutAssemblySquare):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -397,10 +521,12 @@ class ActiveNutAssemblyRound(manipulation.nut_assembly.NutAssemblyRound):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -413,10 +539,12 @@ class ActivePickPlace(manipulation.pick_place.PickPlace):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -429,10 +557,12 @@ class ActivePickPlaceSingle(manipulation.pick_place.PickPlaceSingle):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -445,10 +575,12 @@ class ActivePickPlaceMilk(manipulation.pick_place.PickPlaceMilk):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -461,10 +593,12 @@ class ActivePickPlaceBread(manipulation.pick_place.PickPlaceBread):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -477,10 +611,12 @@ class ActivePickPlaceCereal(manipulation.pick_place.PickPlaceCereal):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -493,10 +629,12 @@ class ActivePickPlaceCan(manipulation.pick_place.PickPlaceCan):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -509,10 +647,12 @@ class ActiveDoor(manipulation.door.Door):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -525,10 +665,12 @@ class ActiveWipe(manipulation.wipe.Wipe):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -541,10 +683,12 @@ class ActiveToolHang(manipulation.tool_hang.ToolHang):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -557,10 +701,12 @@ class ActiveTwoArmLift(manipulation.two_arm_lift.TwoArmLift):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -573,10 +719,12 @@ class ActiveTwoArmPegInHole(manipulation.two_arm_peg_in_hole.TwoArmPegInHole):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -589,10 +737,12 @@ class ActiveTwoArmHandover(manipulation.two_arm_handover.TwoArmHandover):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -605,10 +755,12 @@ class ActiveTwoArmTransport(manipulation.two_arm_transport.TwoArmTransport):
         self, 
         activeview_camera_init_pos=None, 
         activeview_camera_init_quat=None, 
+        init_view=None,
         **kwargs
     ):
         self.activeview_camera_init_pos = activeview_camera_init_pos
         self.activeview_camera_init_quat = activeview_camera_init_quat 
+        self.init_view = init_view
         super().__init__(**kwargs)
 
     # override _load_model to add camera at this stage
@@ -681,7 +833,10 @@ class RobosuiteEnvArgs:
         self.sensory_action_mode = "relative"
         self.return_camera_matrix = False
 
-        # robosuite kwargs
+        # active env kwargs but pass into robosuite make
+        self.init_view = "sideview"
+
+        # robosuite kwargs pass into make
         self.robots = "Panda"
         self.controller_configs = load_controller_config(default_controller="OSC_POSE")
         self.has_renderer = False
@@ -709,6 +864,7 @@ def get_robosuite_kwargs(args: RobosuiteEnvArgs):
         "camera_heights": args.obs_size[0],
         "camera_widths": args.obs_size[1],
         "reward_shaping": args.reward_shaping,
+        "init_view": args.init_view,
         # "render_gpu_device_id": args.render_gpu_device_id,
     }
     return robosuite_kwargs
@@ -734,6 +890,8 @@ def make_base_robosuite_env(args: RobosuiteEnvArgs):
     """
     robosuite_kwargs = get_robosuite_kwargs(args)
     # double check it does not include that
+    if "init_view" in robosuite_kwargs:
+        del robosuite_kwargs["init_view"]
     if "active_view" in args.camera_name:
         args.camera_names.remove("active_view")
         args.selected_obs_names.remove("active_view_image")
@@ -777,7 +935,7 @@ if __name__ == "__main__":
     # print (env.sim.model.camera_names)
     # ('frontview', 'birdview', 'agentview', 'sideview', 'robot0_robotview', 'robot0_eye_in_hand')
     obs = env.reset()
-    active_camera_mover = CameraMover(
+    active_camera_mover = TrueCameraMover(
         env=env,
         camera="active_view",
     )
@@ -791,7 +949,7 @@ if __name__ == "__main__":
             print (obs[k].shape)
         # print (type(obs))
         active_camera_mover.move_camera(direction=[1.0, 1.0, 1.0], scale=0.05)
-        active_camera_mover.rotate_camera(point=None, axis=[0.0, 0.0, 1.0], angle=20) # +up, +left, +clcwise
+        active_camera_mover.rotate_camera(pyr=np.ndarray([0.0, 0.0, 1.0]), angle=20) # +up, +left, +clcwise
         activeview_camera_pos, activeview_camera_quat = active_camera_mover.get_camera_pose()
         # print (activeview_camera_pos, activeview_camera_quat)
         # print (type(obs), obs.shape, obs.max(), obs.min())

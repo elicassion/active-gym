@@ -7,14 +7,16 @@ from .atari_env import (
     AtariFixedFovealPeripheralEnv,
     AtariEnvArgs
 )
-
-from .dmc_env import (
-    DMCBaseEnv,
-    DMCFixedFovealEnv,
-    DMCFlexibleFovealEnv,
-    DMCFixedFovealPeripheralEnv,
-    DMCEnvArgs
-)
+try:
+    from .dmc_env import (
+        DMCBaseEnv,
+        DMCFixedFovealEnv,
+        DMCFlexibleFovealEnv,
+        DMCFixedFovealPeripheralEnv,
+        DMCEnvArgs
+    )
+except Exception as e:
+    print ("DMC loading error. Please check MUJOCO or GL")
 
 try:
     from .robosuite_env import (
@@ -38,10 +40,10 @@ try:
         ActiveTwoArmHandover,
         ActiveTwoArmTransport,
         RobosuiteEnvArgs,
-        make_active_robosuite_env
+        make_active_robosuite_env,
     )
 except Exception as e:
-    print (e)
+    print ("Robosuite loading error. Ignore this if you do not use robosuite.")
 
 from .fov_env import (
     RecordWrapper,
