@@ -1,6 +1,8 @@
 # Active-Gym
 
+<img src="./_doc/media/wipe_sv_move_forward4.gif">
 <img src="./_doc/media/boxing_merge.gif">
+
 
 Active-Gym is a collection of environments for **Active Reinforcement Learning**. It builds on top of existing common visual RL environments including [Atari](https://github.com/openai/atari-py), [DeepMind Control suite](https://github.com/deepmind/dm_control), and [Robosuite](https://github.com/ARISE-Initiative/robosuite). All environments are compatible with [Gymasium](https://github.com/Farama-Foundation/Gymnasium) interface.
 
