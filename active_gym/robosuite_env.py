@@ -404,7 +404,6 @@ def make_robosuite_active(load_model):
         
         camera = find_elements(root=mujoco_arena.worldbody, tags="camera", attribs={"name": self.init_view}, return_first=True)
         self.activeview_camera_init_pos = np.array([float(x) for x in camera.get("pos").split(" ")])
-        # self.activeview_camera_init_pos = np.array([float(x) for x in camera.get("pos").split(" ")])
         self.activeview_camera_init_quat = np.array([float(x) for x in camera.get("quat").split(" ")])
         # print (self.activeview_camera_init_pos, self.activeview_camera_init_quat)
 
