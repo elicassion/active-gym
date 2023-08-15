@@ -50,20 +50,25 @@ for i in range(5):
 ### Robosuite
 ```
 from active_gym import make_active_robosuite_env, RobosuiteEnvArgs
+from robosuite.controllers import load_controller_config
 env_args = RobosuiteEnvArgs(
     task=task_name,                 # task name like "Lift"
     seed=seed,                      # random seed
     obs_size=(84, 84),              # observation resolution
     robots=["Panda", "Panda"] if "TwoArm" in task_name else "Panda",              # robot config
+    controller_configs = load_controller_config(default_controller="OSC_POSE")    # optionally change the controller
     camera_names=["sideview", "active_view", "agentview"],                        # views available in simulation
     selected_obs_names=["sideview_image", "active_view_image", "agentview_image"] # selected observation returned in observation, must be a subset of <camera_names>
     init_view="sideview",           # where to initialize the active camera, the selected one should be presented in <camera_names>
     **kwargs
 )
 env = make_active_robosuite_env(env_args)
-env.action_space.seed(seed)
-env.observation_space.seed(seed)
-return env
+obs, info = env.reset()
+# obs["active_view_image"]          # the image observation from active_view
+for i in range(5):
+    obs, reward, done, truncated, info = env.step(env.action_space.sample())
+    # action is in the form of gymnasium.spaces.Dict
+    # {"motor_action": np.ndarray, "sensory_action": np.ndarray}
 ```
 
 More examples can be found at `if __name__ == "__main__"` part in `atari_env.py`, `dmc_env.py`, and `robosuite_env.py`.
