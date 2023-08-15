@@ -1,8 +1,8 @@
 # Active-Gym
 
 <p float="left">
-    <img src="./_doc/media/wipe_sv_move_forward4.gif">
-    <img src="./_doc/media/boxing_merge.gif">
+    <img src="./_doc/media/wipe_sv_move_forward4.gif" height="84">
+    <img src="./_doc/media/boxing_merge.gif" height="84">
 </p>
 
 
