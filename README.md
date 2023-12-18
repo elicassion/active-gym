@@ -6,9 +6,9 @@
 </p>
 
 
-Active-Gym is a collection of environments for **Active Reinforcement Learning**. It builds on top of existing common visual RL environments including [Atari](https://github.com/openai/atari-py), [DeepMind Control suite](https://github.com/deepmind/dm_control), and [Robosuite](https://github.com/ARISE-Initiative/robosuite). All environments are compatible with [Gymasium](https://github.com/Farama-Foundation/Gymnasium) interface.
+Active-Gym is a collection of environments for **Active Vision Reinforcement Learning**. It builds on top of existing common visual RL environments including [Atari](https://github.com/openai/atari-py), [DeepMind Control suite](https://github.com/deepmind/dm_control), and [Robosuite](https://github.com/ARISE-Initiative/robosuite). All environments are compatible with [Gymasium](https://github.com/Farama-Foundation/Gymnasium) interface.
 
-What is Active-RL?
+What is Active(Vision)-RL?
 It is a process that allows an embodied agent to actively gather new information in an environment. This library particularly focuses on actively managing visual observations, for example an image crop in a 2D environment or a viewpoint in a 3D environment. The agent takes motor actions (like manipulations, physical interactions) and sensory actions (like eye movements) together to finish a task.
 
 
