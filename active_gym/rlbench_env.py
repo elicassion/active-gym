@@ -488,6 +488,6 @@ if __name__ == "__main__":
             obs, reward, terminate, truncated, _ = env.step(env.action_space.sample())
             print (obs["active_rgb"].shape, obs["active_rgb"].dtype)
             im = Image.fromarray((obs["active_rgb"]*255.).astype(np.uint8))
-            im.save(f"tmp/{j:02d}.png")
+            # im.save(f"tmp/{j:02d}.png")
         
     env.close()
