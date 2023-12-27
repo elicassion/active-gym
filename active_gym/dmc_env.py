@@ -56,6 +56,7 @@ def _flatten_obs(obs) -> np.ndarray:
 class DMCEnvArgs:
     def __init__(self, domain_name: str, task_name: str, seed: int, 
                         obs_size: Tuple[int, int], **kwargs):
+        self.env_backend = "dmc"
         self.seed = seed
         self.domain_name = domain_name
         self.task_name = task_name

@@ -24,6 +24,7 @@ from .fov_env import (
 
 class AtariEnvArgs:
     def __init__(self, game, seed, obs_size: Tuple[int, int], **kwargs):
+        self.env_backend = "atari_py"
         self.device = None
         self.seed = seed
         self.max_episode_length = 108e3

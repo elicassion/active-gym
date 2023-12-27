@@ -1,3 +1,5 @@
+# Copyright (c) Jinghuan Shang.
+
 import os
 
 from collections import deque
@@ -33,38 +35,11 @@ from active_gym.fov_env import (
     RecordWrapper
 )
 
-def euler_to_rotation_matrix(pyr: np.ndarray):
-    pitch, yaw, roll = pyr
-    # Pitch (X-axis rotation)
-    R_x = np.array([
-        [1, 0, 0],
-        [0, np.cos(pitch), -np.sin(pitch)],
-        [0, np.sin(pitch), np.cos(pitch)]
-    ])
-    
-    # Yaw (Y-axis rotation)
-    R_y = np.array([
-        [np.cos(yaw), 0, np.sin(yaw)],
-        [0, 1, 0],
-        [-np.sin(yaw), 0, np.cos(yaw)]
-    ])
-    
-    # Roll (Z-axis rotation)
-    R_z = np.array([
-        [np.cos(roll), -np.sin(roll), 0],
-        [np.sin(roll), np.cos(roll), 0],
-        [0, 0, 1]
-    ])
-    
-    R = np.dot(R_z, np.dot(R_y, R_x))
+from active_gym.utils import (
+    euler_to_rotation_matrix
+)
 
-    R_4x4 = np.eye(4)
-    R_4x4[:3, :3] = R
-    R_4x4[:3, 3] = np.array([0, 0, 0])
-    
-    return R_4x4
-
-class TrueCameraMover(CameraMover):
+class RobosuiteCameraMover(CameraMover):
 
     def rotate_camera(self, pyr, scale=5.0):
         """
@@ -301,7 +276,7 @@ class RobosuiteActiveEnv(gym.Wrapper):
         return state, reward, done, truncated, info
     
     def _init_active_camera(self):
-        self.active_camera_mover = TrueCameraMover(
+        self.active_camera_mover = RobosuiteCameraMover(
             env=self.env.unwrapped,
             camera="active_view",
         )
@@ -796,6 +771,7 @@ class RobosuiteEnvArgs:
     args for ActiveRobosuiteEnv
     """
     def __init__(self, task, seed, obs_size: Tuple[int, int], **kwargs):
+        self.env_backend = "robosuite"
         self.device = None
         self.seed = seed
         self.max_episode_length = 1000
@@ -911,7 +887,7 @@ if __name__ == "__main__":
     # print (env.sim.model.camera_names)
     # ('frontview', 'birdview', 'agentview', 'sideview', 'robot0_robotview', 'robot0_eye_in_hand')
     obs = env.reset()
-    active_camera_mover = TrueCameraMover(
+    active_camera_mover = RobosuiteCameraMover(
         env=env,
         camera="active_view",
     )

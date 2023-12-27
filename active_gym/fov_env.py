@@ -17,6 +17,7 @@ class RecordWrapper(gym.Wrapper):
         super().__init__(env)
         
         # init reward and episode len counter
+        self.args = args
         self.cumulative_reward = 0
         self.ep_len = 0
         self.record_buffer = None
@@ -36,7 +37,14 @@ class RecordWrapper(gym.Wrapper):
                               "truncated": [], "info": [], "return_reward": []}
 
     def reset(self, seed=None, options=None):
-        state, info = self.env.reset(seed, options)
+        if hasattr(self.args, "env_backend"):
+            if self.args.env_backend == "rlbench":
+                state, info = self.env.reset()
+            else:
+                state, info = self.env.reset(seed, options)
+        else:
+            state, info = self.env.reset(seed, options)
+        # state, info = self.env.reset(seed, options)
         self.cumulative_reward = 0
         self.ep_len = 0
         info = self._add_info(info)
