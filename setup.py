@@ -22,8 +22,8 @@ setup(
             "robosuite",
         ],
         "rlbench": [
-            "git+https://github.com/stepjam/PyRep.git",
-            "git+https://github.com/stepjam/RLBench.git"
+            "PyRep @ git+https://github.com/stepjam/PyRep.git",
+            "RLBench @ git+https://github.com/stepjam/RLBench.git"
         ]
     },
 )
