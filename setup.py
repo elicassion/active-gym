@@ -12,7 +12,7 @@ setup(
         "mujoco-py>=2.1.2.14",
         "atari-py",
         "dm-control==1.0.11",
-        "gym",
+        "gymnasium>=0.28.1,<1.0.0",
         "torch",
         "torchvision",
         "transform3d"
