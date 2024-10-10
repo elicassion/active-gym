@@ -901,7 +901,7 @@ if __name__ == "__main__":
             print (obs[k].shape)
         # print (type(obs))
         active_camera_mover.move_camera(direction=[1.0, 1.0, 1.0], scale=0.05)
-        active_camera_mover.rotate_camera(pyr=np.ndarray([0.0, 0.0, 1.0]), angle=20) # +up, +left, +clcwise
+        active_camera_mover.rotate_camera(pyr=np.ndarray([0.0, 0.0, 1.0])) # +up, +left, +clcwise
         activeview_camera_pos, activeview_camera_quat = active_camera_mover.get_camera_pose()
         # print (activeview_camera_pos, activeview_camera_quat)
         # print (type(obs), obs.shape, obs.max(), obs.min())
